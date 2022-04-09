@@ -113,7 +113,7 @@ def train(opt, device):
     optimizer_h = torch.optim.SGD(model.parameters(), lr=10e-2, weight_decay=10e3, momentum=0.9)
     scheduler1 = torch.optim.lr_scheduler.MultiStepLR(optimizer_h, milestones=[30, 60], gamma=0.1)
 
-    transition_matrix = TransitionMatrix(num_classes=num_classes)
+    transition_matrix = TransitionMatrix(num_classes=num_classes, device=device)
     if opt.dataset == "cifar10":
         optimizer_trans = torch.optim.SGD(transition_matrix.parameters(), lr=10e-2, weight_decay=0, momentum=0.9)
     else:
