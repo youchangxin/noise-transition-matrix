@@ -4,7 +4,7 @@ import torch.nn.functional as F
 
 
 class TransitionMatrix(nn.Module):
-    def __init__(self, num_classes, ):
+    def __init__(self, num_classes, device):
         if num_classes == 10:
             init = -2
         else:
@@ -12,12 +12,15 @@ class TransitionMatrix(nn.Module):
         super(TransitionMatrix, self).__init__()
         T_w= torch.ones([num_classes, num_classes]) * init
         self.register_parameter(name="T_w", param=nn.parameter.Parameter(T_w))
+        self.T_w.to(device)
 
         self.identity = torch.eye(num_classes)
+        self.identity.to(device)
 
         self.coeff = torch.ones([num_classes, num_classes])
         coeff_diag = torch.diag_embed(self.coeff)[0]
         self.coeff = self.coeff - coeff_diag
+        self.coeff.to(device)
 
     def forward(self):
         sig = torch.sigmoid(self.T_w)
