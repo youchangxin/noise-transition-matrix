@@ -20,13 +20,14 @@ if str(ROOT) not in sys.path:
     sys.path.append(str(ROOT))  # add ROOT to PATH
 ROOT = Path(os.path.relpath(ROOT, Path.cwd()))  # relative
 
+
 def parse_opt(known=False):
     parser = argparse.ArgumentParser()
     # arguments
     parser.add_argument('--dataset', type=str, help='mnist, cifar10, cifar100', default='mnist')
     parser.add_argument('--flip_type', type=str, default='pair')
     parser.add_argument('--noise_rate', type=float, help='corruption rate, should be less than 1', default=0.2)
-    parser.add_argument('--seed', type=int, default=20)
+    parser.add_argument('--seed', type=int, default=21)
     parser.add_argument('--batch_size', type=int, default=128)
     parser.add_argument('--device', help='cuda device, i.e. 0 or 0,1,2,3 or cpu', default=0)
     parser.add_argument('--lam', type=float, default=0.0001)
@@ -110,14 +111,14 @@ def train(opt, device):
     loss_func_ce = F.nll_loss
 
     # optimizer and StepLR
-    optimizer_h = torch.optim.SGD(model.parameters(), lr=10e-2, weight_decay=10e3, momentum=0.9)
+    optimizer_h = torch.optim.SGD(model.parameters(), lr=0.01, weight_decay=1e-4, momentum=0.9)
     scheduler1 = torch.optim.lr_scheduler.MultiStepLR(optimizer_h, milestones=[30, 60], gamma=0.1)
 
     transition_matrix = TransitionMatrix(num_classes=num_classes, device=device)
     if opt.dataset == "cifar10":
         optimizer_trans = torch.optim.SGD(transition_matrix.parameters(), lr=10e-2, weight_decay=0, momentum=0.9)
     else:
-        optimizer_trans = torch.optim.Adam(transition_matrix.parameters(), lr=10e-2, weight_decay=0)
+        optimizer_trans = torch.optim.Adam(transition_matrix.parameters(), lr=10e-2)
     scheduler2 = torch.optim.lr_scheduler.MultiStepLR(optimizer_trans, milestones=[30, 60], gamma=0.1)
 
     model.to(device)
@@ -138,7 +139,7 @@ def train(opt, device):
         val_acc = 0.
         eval_loss = 0.
         eval_acc = 0.
-        i = 0
+
         for batch_x, batch_y in train_loader:
             batch_x = batch_x.to(device)
             batch_y = batch_y.to(device)
@@ -149,9 +150,6 @@ def train(opt, device):
             clean = model(batch_x)
             t_hat = transition_matrix()
             y_tilde = torch.mm(clean, t_hat)
-            print(t_hat.shape)
-            print(i)
-            i += 1
             vol_loss = t_hat.slogdet().logabsdet
 
             ce_loss = loss_func_ce(y_tilde.log(), batch_y.long())
