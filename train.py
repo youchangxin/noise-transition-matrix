@@ -211,7 +211,7 @@ def train(opt, device):
             print('Test Loss: {:.6f}, Acc: {:.6f}'.format(eval_loss / (len(test_set)) * opt.batch_size,
                                                           eval_acc / (len(test_set))))
 
-            T_hat = T.detach().cpu().numpy()
+            T_hat = T_hat.detach().cpu().numpy()
             matrix_error = transition_matrix_error(T, T_hat)
 
             print('Estimation Transition Matrix Error: {:.2f}'.format(matrix_error))

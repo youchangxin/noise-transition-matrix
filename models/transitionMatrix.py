@@ -10,7 +10,7 @@ class TransitionMatrix(nn.Module):
         else:
             init = -4.5
         super(TransitionMatrix, self).__init__()
-        T_w= torch.ones([num_classes, num_classes]) * init
+        T_w = torch.ones([num_classes, num_classes]) * init
         self.register_parameter(name="T_w", param=nn.parameter.Parameter(T_w))
         self.T_w.to(device)
 
