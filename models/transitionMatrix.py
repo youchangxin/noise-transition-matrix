@@ -24,6 +24,6 @@ class TransitionMatrix(nn.Module):
 
     def forward(self):
         sig = torch.sigmoid(self.T_w)
-        T = self.identity.detach() + sig * self.coeff.detach()
+        T = self.identity + sig * self.coeff
         T = F.normalize(T, p=1, dim=1)
         return T
