@@ -15,16 +15,15 @@ class TransitionMatrix(nn.Module):
         self.T_w.to(device)
 
         self.identity = torch.eye(num_classes)
-        self.identity.to(device)
+        self.identity = self.identity.to(device)
 
         self.coeff = torch.ones([num_classes, num_classes])
         coeff_diag = torch.diag_embed(self.coeff)[0]
         self.coeff = self.coeff - coeff_diag
-        self.coeff.to(device)
+        self.coeff = self.coeff.to(device)
 
     def forward(self):
         sig = torch.sigmoid(self.T_w)
-        print(sig)
-        T = self.identity + sig * self.coeff
+        T = self.identity.detach() + sig * self.coeff.detach()
         T = F.normalize(T, p=1, dim=1)
         return T
