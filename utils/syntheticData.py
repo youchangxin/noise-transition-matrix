@@ -40,7 +40,6 @@ class Flip:
             true_transition_matrix[i, flipped_label] += 1
             corrupt_label[idx] = flipped_label
         true_transition_matrix = true_transition_matrix / stas[:, np.newaxis]
-        print(true_transition_matrix)
         return corrupt_label, true_transition_matrix
 
     def symmetric(self, label):

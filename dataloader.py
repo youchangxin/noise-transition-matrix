@@ -22,8 +22,6 @@ class Dataset_MNIST(Dataset):
             noise_label, self.transition_matrix = flip.asymmetric(label_npy)
         elif flip_type == 'pair':
             noise_label, self.transition_matrix = flip.pair(label_npy)
-        print(label_npy)
-        print(noise_label)
         self.label = torch.from_numpy(noise_label).long()
         self.tranform = transforms.Compose([transforms.ToTensor(),
                                                 transforms.Normalize((0.1307,), (0.3081,))])
@@ -126,11 +124,17 @@ class Dataset_CIFAR_TEST(Dataset):
         return len(self.label)
 
 
-
-if  __name__ == "__main__":
+if __name__ == "__main__":
     import matplotlib.pyplot as plt
-    train_data = Dataset_MNIST_TEST()
-    train_loader = DataLoader(dataset=train_data,
+
+    torch.manual_seed(seed=20)
+    mnist_data = Dataset_MNIST_TEST()
+    train_size = int(0.9 * len(mnist_data))
+    test_size = len(mnist_data) - train_size
+    train_set, val_set = torch.utils.data.random_split(mnist_data, [train_size, test_size])
+
+
+    train_loader = DataLoader(dataset=val_set,
                               batch_size=1,
                               shuffle=True,
                               drop_last=False)

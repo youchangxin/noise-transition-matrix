@@ -19,12 +19,5 @@ class LeNet(nn.Module):
         x = F.relu(self.fc1(x))
         x = F.relu(self.fc2(x))
         x = self.fc3(x)
-
-        output = F.softmax(x)
+        output = F.softmax(x, 1)
         return output
-
-
-if __name__ == "__main__":
-    from torchsummary import summary
-    model = LeNet()
-    summary(model, (1, 28, 28))
