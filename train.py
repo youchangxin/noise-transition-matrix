@@ -120,9 +120,8 @@ def train(opt, device):
         optimizer_trans = torch.optim.Adam(transition_matrix.parameters(), lr=10e-2, weight_decay=0)
     scheduler2 = torch.optim.lr_scheduler.MultiStepLR(optimizer_trans, milestones=[30, 60], gamma=0.1)
 
-    if torch.cuda.is_available:
-        model.to(device)
-        transition_matrix.to(device)
+    model.to(device)
+    transition_matrix.to(device)
 
     val_loss_list = []
     val_acc_list = []
