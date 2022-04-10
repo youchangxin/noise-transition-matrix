@@ -108,7 +108,7 @@ def train(opt, device):
     test_loader = DataLoader(dataset=test_set, batch_size=opt.batch_size,
                              shuffle=True, num_workers=4, drop_last=False)
     # loss
-    loss_func_ce = F.nll_loss
+    loss_func_ce = F.nll_loss  # softmax is added in model
 
     # optimizer and StepLR
     optimizer_h = torch.optim.SGD(model.parameters(), lr=0.01, weight_decay=1e-4, momentum=0.9)
@@ -150,7 +150,7 @@ def train(opt, device):
             clean = model(batch_x)
             t_hat = transition_matrix()
             y_tilde = torch.mm(clean, t_hat)
-            vol_loss = t_hat.slogdet().logabsdet
+            vol_loss = t_hat.slogdet()[1]
 
             ce_loss = loss_func_ce(y_tilde.log(), batch_y.long())
             loss = ce_loss + opt.lam * vol_loss
