@@ -150,8 +150,7 @@ def train(opt, device):
             clean = model(batch_x)
             t_hat = transition_matrix()
             y_tilde = torch.mm(clean, t_hat)
-            vol_loss = t_hat.slogdet()[1]
-
+            vol_loss = torch.abs(t_hat.slogdet().logabsdet)
             ce_loss = loss_func_ce(y_tilde.log(), batch_y.long())
             loss = ce_loss + opt.lam * vol_loss
 
