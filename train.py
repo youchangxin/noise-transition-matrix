@@ -2,8 +2,10 @@ import argparse
 import sys
 import os
 import torch
+import pandas as pd
 import torch.nn.functional as F
 import random
+from tqdm import tqdm
 
 
 from utils.tools import transition_matrix_error
@@ -26,12 +28,12 @@ def parse_opt(known=False):
     # arguments
     parser.add_argument('--dataset', type=str, help='mnist, cifar10, cifar100', default='mnist')
     parser.add_argument('--flip_type', type=str, default='pair')
-    parser.add_argument('--noise_rate', type=float, help='corruption rate, should be less than 1', default=0.2)
+    parser.add_argument('--noise_rate', type=float, help='corruption rate, should be less than 1', default=0.5)
     parser.add_argument('--seed', type=int, default=21)
     parser.add_argument('--batch_size', type=int, default=128)
     parser.add_argument('--device', help='cuda device, i.e. 0 or 0,1,2,3 or cpu', default=0)
     parser.add_argument('--lam', type=float, default=0.0001)
-    parser.add_argument('--volminnet', action='store_true', help='using VolMinNet to train dataset')
+    parser.add_argument('--without_vol', action='store_true', help='Not to use VolMinNet to train dataset')
 
     opt = parser.parse_known_args()[0] if known else parser.parse_args()
     return opt
@@ -124,23 +126,24 @@ def train(opt, device):
     model.to(device)
     transition_matrix.to(device)
 
-    val_loss_list = []
-    val_acc_list = []
-    test_acc_list = []
-    for epoch in range(EPOCH):
+    # Create DataFrame to log
+    res = pd.DataFrame()
 
+    for epoch in range(EPOCH):
         model.train()
         transition_matrix.train()
 
         train_loss = 0.
         train_vol_loss = 0.
         train_acc = 0.
+
         val_loss = 0.
         val_acc = 0.
-        eval_loss = 0.
-        eval_acc = 0.
 
-        for batch_x, batch_y in train_loader:
+        # ################ TRAIN ################
+        loop = tqdm(enumerate(train_loader), total=len(train_loader))
+        for index, (batch_x, batch_y) in loop:
+
             batch_x = batch_x.to(device)
             batch_y = batch_y.to(device)
 
@@ -165,13 +168,22 @@ def train(opt, device):
             optimizer_h.step()
             optimizer_trans.step()
 
-        print('Train Loss: {:.6f}, Vol_loss: {:.6f}  Acc: {:.6f}'.
-              format(train_loss / (len(train_set)) * opt.batch_size, train_vol_loss / (len(train_set)) * opt.batch_size,
-                                                                     train_acc / (len(train_set))))
+            # update tqdm
+            loop.set_description(f'Epoch [{epoch}/{EPOCH}]')
+
+        # train metric
+        train_loss = train_loss / (len(train_set)) * opt.batch_size
+        train_vol_loss = train_vol_loss / (len(train_set)) * opt.batch_size
+        train_acc = train_acc / (len(train_set))
+
+        print('Train Loss: {:.6f} Train vol loss: {:.6f}  Train Acc: {:.6f}'.format(train_loss,
+                                                                                    train_vol_loss,
+                                                                                    train_acc))
 
         scheduler1.step()
         scheduler2.step()
 
+        # ################ VALIDATION ################
         with torch.no_grad():
             model.eval()
             transition_matrix.eval()
@@ -188,51 +200,189 @@ def train(opt, device):
                 val_correct = (pred == batch_y).sum()
                 val_acc += val_correct.item()
 
-        print('Val Loss: {:.6f}, Acc: {:.6f}'.format(val_loss / (len(val_set)) * opt.batch_size,
-                                                     val_acc / (len(val_set))))
+        # validation metric
+        val_loss = val_loss / len(val_set)
+        val_acc = val_acc / len(val_set)
 
+        print('Val Loss: {:.6f}  Val Acc: {:.6f}'.format(val_loss, val_acc))
+
+        # record log
+        res_row = pd.DataFrame({'train_loss': train_loss, 'train_vol_loss': train_vol_loss, 'train_acc': train_acc,
+                                'val_loss': val_loss, 'val_acc': val_acc}, index=[epoch])
+        res = res.append(res_row)
+
+    # ################ TEST ################
+    test_acc = 0.0
+    with torch.no_grad():
+        model.eval()
+        transition_matrix.eval()
+
+        for batch_x, batch_y in test_loader:
+            batch_x = batch_x.to(device)
+            batch_y = batch_y.to(device)
+
+            clean = model(batch_x)
+            pred = torch.max(clean, 1)[1]
+            eval_correct = (pred == batch_y).sum()
+            test_acc += eval_correct.item()
+        test_acc /= len(test_set)
+        print('Test Accuracy: {:.6f}'.format(test_acc))
+
+    T_hat = t_hat.detach().cpu().numpy()
+    matrix_error = transition_matrix_error(T, T_hat)
+    print('Estimation Transition Matrix Error: {:.2f}'.format(matrix_error))
+
+    # ##################### SAVE Result #####################
+    folder = "output/" + str(opt.dataset)+"_"+str(opt.flip_type)+"_"+str(opt.noise_rate)+"/"
+    if not os.path.exists(folder):
+        os.makedirs(folder)
+    # train_val result
+    res.to_csv(folder+"result.csv")
+    # test result
+    with open(folder+"test.txt", "w") as f:
+        f.write(str(test_acc))
+    #  Save transition matrix
+    np.save(folder+'T', T)
+    np.save(folder+'T_hat', T_hat)
+
+
+def train_without_vol(opt, device):
+    if opt.dataset == 'mnist':
+        train_set, val_set, test_set, model, T = experiment_mnist(opt)
+        EPOCH = 60
+        num_classes = 10
+
+    elif opt.dataset == 'cifar10':
+        train_set, val_set, test_set, model, T = experiment_cifar10(opt)
+        EPOCH = 150
+        num_classes = 10
+    else:
+        train_set, val_set, test_set, model, T = experiment_cifar100(opt)
+        EPOCH = 150
+        num_classes = 100
+
+    # create data_loader
+    train_loader = DataLoader(dataset=train_set, batch_size=opt.batch_size,
+                              shuffle=True, num_workers=4, drop_last=False)
+
+    val_loader = DataLoader(dataset=val_set, batch_size=opt.batch_size,
+                            shuffle=True, num_workers=4, drop_last=False)
+
+    test_loader = DataLoader(dataset=test_set, batch_size=opt.batch_size,
+                             shuffle=True, num_workers=4, drop_last=False)
+    # loss
+    loss_func_ce = F.nll_loss  # softmax is added in model
+
+    # optimizer and StepLR
+    optimizer_h = torch.optim.SGD(model.parameters(), lr=0.01, weight_decay=1e-4, momentum=0.9)
+    scheduler1 = torch.optim.lr_scheduler.MultiStepLR(optimizer_h, milestones=[30, 60], gamma=0.1)
+
+    model.to(device)
+
+    # Create DataFrame to log
+    res = pd.DataFrame()
+
+    for epoch in range(EPOCH):
+        model.train()
+
+        train_loss = 0.
+        train_acc = 0.
+
+        val_loss = 0.
+        val_acc = 0.
+
+        # ################ TRAIN ################
+        loop = tqdm(enumerate(train_loader), total=len(train_loader))
+        for index, (batch_x, batch_y) in loop:
+
+            batch_x = batch_x.to(device)
+            batch_y = batch_y.to(device)
+
+            optimizer_h.zero_grad()
+
+            clean = model(batch_x)
+
+            loss = loss_func_ce(clean.log(), batch_y.long())
+            train_loss += loss.item()
+
+            pred = torch.max(clean, 1)[1]
+            train_correct = (pred == batch_y).sum()
+            train_acc += train_correct.item()
+
+            loss.backward()
+            optimizer_h.step()
+
+            # update tqdm
+            loop.set_description(f'Epoch [{epoch}/{EPOCH}]')
+
+        # train metric
+        train_loss = train_loss / (len(train_set)) * opt.batch_size
+        train_acc = train_acc / (len(train_set))
+
+        print('Train Loss: {:.6f} Train Acc: {:.6f}'.format(train_loss, train_acc))
+
+        scheduler1.step()
+
+        # ################ VALIDATION ################
         with torch.no_grad():
             model.eval()
-            transition_matrix.eval()
-
-            for batch_x, batch_y in test_loader:
+            for batch_x, batch_y in val_loader:
                 batch_x = batch_x.to(device)
                 batch_y = batch_y.to(device)
-
                 clean = model(batch_x)
+
                 loss = loss_func_ce(clean.log(), batch_y.long())
-
-                eval_loss += loss.item()
+                val_loss += loss.item()
                 pred = torch.max(clean, 1)[1]
-                eval_correct = (pred == batch_y).sum()
-                eval_acc += eval_correct.item()
+                val_correct = (pred == batch_y).sum()
+                val_acc += val_correct.item()
 
-            print('Test Loss: {:.6f}, Acc: {:.6f}'.format(eval_loss / (len(test_set)) * opt.batch_size,
-                                                          eval_acc / (len(test_set))))
+        # validation metric
+        val_loss = val_loss / len(val_set)
+        val_acc = val_acc / len(val_set)
 
-            T_hat = t_hat.detach().cpu().numpy()
-            matrix_error = transition_matrix_error(T, T_hat)
+        print('Val Loss: {:.6f}  Val Acc: {:.6f}'.format(val_loss, val_acc))
 
-            print('Estimation Transition Matrix Error: {:.2f}'.format(matrix_error))
+        # record log
+        res_row = pd.DataFrame({'train_loss': train_loss, 'train_acc': train_acc,
+                                'val_loss': val_loss, 'val_acc': val_acc}, index=[epoch])
+        res = res.append(res_row)
 
-        val_loss_list.append(val_loss / (len(val_set)))
-        val_acc_list.append(val_acc / (len(val_set)))
-        test_acc_list.append(eval_acc / (len(test_set)))
+    # ################ TEST ################
+    test_acc = 0.0
+    with torch.no_grad():
+        model.eval()
 
-    val_loss_array = np.array(val_loss_list)
-    val_acc_array = np.array(val_acc_list)
-    model_index = np.argmin(val_loss_array)
-    model_index_acc = np.argmax(val_acc_array)
+        for batch_x, batch_y in test_loader:
+            batch_x = batch_x.to(device)
+            batch_y = batch_y.to(device)
 
-    print("Final test accuracy: %f" % test_acc_list[model_index])
-    print("Final test accuracy acc: %f" % test_acc_list[model_index_acc])
-    print("Best epoch: %d" % model_index)
+            clean = model(batch_x)
+            pred = torch.max(clean, 1)[1]
+            eval_correct = (pred == batch_y).sum()
+            test_acc += eval_correct.item()
+        test_acc /= len(test_set)
+        print('Test Accuracy: {:.6f}'.format(test_acc))
+
+
+    # ##################### SAVE Result #####################
+    folder = "output/" + str(opt.dataset)+"_"+str(opt.flip_type)+"_"+str(opt.noise_rate)+"_NoVol/"
+    if not os.path.exists(folder):
+        os.makedirs(folder)
+    # train_val result
+    res.to_csv(folder+"result.csv")
+    # test result
+    with open(folder+"test.txt", "w") as f:
+        f.write(str(test_acc))
 
 
 def main(opt):
     setup_seed(opt.seed)
     device = torch.device("cuda:"+str(opt.device) if torch.cuda.is_available() else "cpu")
-    train(opt, device)
+    if opt.without_vol:
+        train_without_vol(opt, device)
+    else:
+        train(opt, device)
 
 
 if __name__ == "__main__":
