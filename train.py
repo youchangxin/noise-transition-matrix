@@ -29,7 +29,7 @@ def parse_opt(known=False):
     parser.add_argument('--dataset', type=str, help='mnist, cifar10, cifar100', default='mnist')
     parser.add_argument('--flip_type', type=str, default='pair')
     parser.add_argument('--noise_rate', type=float, help='corruption rate, should be less than 1', default=0.5)
-    parser.add_argument('--seed', type=int, default=21)
+    parser.add_argument('--seed', type=int, default=20)
     parser.add_argument('--batch_size', type=int, default=128)
     parser.add_argument('--device', help='cuda device, i.e. 0 or 0,1,2,3 or cpu', default=0)
     parser.add_argument('--lam', type=float, default=0.0001)
