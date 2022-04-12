@@ -25,6 +25,7 @@ sh benchmark.sh
 - numpy
 - pandas
 - tqdm
+- seaborn
 
 ## Visualization
 The code of visualization stores in Utils directory
