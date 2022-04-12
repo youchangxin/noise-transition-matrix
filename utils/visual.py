@@ -121,6 +121,6 @@ def plot_train_val_loss(path_save="../output/loss.png"):
 
 if __name__ == "__main__":
     read_test_acc()
-    # transition_matrix_visual()
-    # plot_train_val_acc()
-    # plot_train_val_loss()
+    transition_matrix_visual()
+    plot_train_val_acc()
+    plot_train_val_loss()
