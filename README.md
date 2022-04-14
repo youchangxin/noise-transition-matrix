@@ -28,7 +28,8 @@ sh benchmark.sh
 - seaborn
 
 ## Visualization
-The code of visualization stores in Utils directory
+The code of visualization stores in Utils directory  
+After run out the experiment type  ``python ./utils/visual.py`` to terminal
 
 ## Dataset
 1. MNIST
