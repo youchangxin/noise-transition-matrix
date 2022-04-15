@@ -2,8 +2,12 @@
 COMP7250 course project of HKBU   
 Reproducing VolMinNet to estimating the noise transition matrix   
 
-##research paper
+##research paper  
 [Provably End-to-end Label-noise Learning without Anchor Points](https://arxiv.org/abs/2102.02400)
+
+## Dataset
+The datasets include MNIST, CIFAR-10, CIFAR-100 and  provide in [Google Drive](https://drive.google.com/drive/folders/1OYsRH9x37LQhbmGNv-1Ao1iYTHQN8W7F?usp=sharing) 
+(the images and labels have been processed to .npy format).
 
 
 ## Training
