@@ -2,7 +2,7 @@
 COMP7250 course project of HKBU   
 Reproducing VolMinNet to estimating the noise transition matrix   
 
-##research paper  
+## research paper  
 [Provably End-to-end Label-noise Learning without Anchor Points](https://arxiv.org/abs/2102.02400)
 
 ## Dataset
@@ -55,7 +55,7 @@ After run out the experiment type  ``python ./utils/visual.py`` to terminal
 ## Hyper-Parameter
 ### MNIST
 Model : LENet-5
- 
+
 epoch : 60  
 batch size : 128  
 momentum : 0.9  
@@ -81,7 +81,7 @@ gamma : 0.1
 
 ### CIFAR100
 Model : ResNet-32 
- 
+
 epoch: 150  
 batch size : 128  
 momentum : 0.9  
